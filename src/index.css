@@ -1,0 +1,225 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;  /* Light background */
+    --foreground: 224 71% 4%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+
+    --primary: 220 14% 14%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Improved dark mode with better contrasts */
+    --background: 220 10% 5%;  /* Darker background */
+    --foreground: 0 0% 95%;    /* Lighter text for better contrast */
+
+    --card: 220 10% 9%;        /* Darker card background */
+    --card-foreground: 0 0% 95%;
+
+    --popover: 220 10% 5%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 0% 90%;       /* Lighter primary for better visibility */
+    --primary-foreground: 220 10% 5%;
+
+    --secondary: 220 10% 15%;  /* Darker secondary */
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 220 10% 15%;
+    --muted-foreground: 220 10% 70%;
+
+    --accent: 220 10% 20%;     /* Darker accent */
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 70% 50%;  /* Brighter destructive for visibility */
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 220 10% 20%;     /* Better border contrast */
+    --input: 220 10% 20%;
+    --ring: 0 0% 90%;
+
+    --sidebar-background: 220 10% 5%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 0% 90%;
+    --sidebar-primary-foreground: 220 10% 5%;
+    --sidebar-accent: 220 10% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 220 10% 25%;  /* More visible borders */
+    --sidebar-ring: 0 0% 90%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.dark .glass-card {
+  background: rgba(25, 25, 28, 0.8);  /* Darker, less blue glass */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(70, 70, 80, 0.3);  /* More visible border */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.dark .glass-card:hover {
+  background: rgba(30, 30, 35, 0.9);  /* Slightly more opaque on hover */
+  box-shadow: 0 8px 32px rgba(10, 10, 15, 0.2);  /* Dark glow */
+  transform: translateY(-2px);
+}
+
+.btn-transition {
+  transition: all 0.3s ease;
+}
+
+.btn-transition:hover {
+  transform: translateY(-2px);
+}
+
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Updated gradient backgrounds for dark mode compatibility */
+.blue-gradient-primary {
+  background: linear-gradient(135deg, rgba(50, 50, 55, 0.8) 0%, rgba(40, 40, 45, 0.9) 100%);
+}
+
+.blue-gradient-secondary {
+  background: linear-gradient(135deg, rgba(40, 40, 45, 0.8) 0%, rgba(30, 30, 35, 0.9) 100%);
+}
+
+.blue-gradient-accent {
+  background: linear-gradient(135deg, rgba(45, 45, 50, 0.8) 0%, rgba(35, 35, 40, 0.9) 100%);
+}
+
+.dark .card-highlight {
+  border: 1px solid rgba(80, 80, 95, 0.4);
+  box-shadow: 0 0 15px rgba(15, 15, 20, 0.3);
+}
+
+/* Fix for table lines in dark mode */
+.dark tr, .dark td, .dark th {
+  border-color: rgba(80, 80, 95, 0.3);
+}
+
+.dark .border-t, .dark .border-b, .dark .border-l, .dark .border-r {
+  border-color: rgba(80, 80, 95, 0.3);
+}
+
+/* Fix for savings distribution plan in dark mode - Changed from blue to match site theme */
+.dark .bg-white {
+  background-color: rgb(30, 30, 35);  /* Corrected background for white elements in dark mode */
+  color: rgba(240, 240, 245, 0.9);
+}
+
+/* Transaction item badges in dark mode */
+.dark .bg-blue-50 {
+  background-color: rgba(40, 40, 45, 0.7);
+}
+
+.dark .border-blue-200 {
+  border-color: rgba(70, 70, 80, 0.5);
+}
+
+/* Ensure better text contrast in dark mode */
+.dark .text-gray-500 {
+  color: rgba(180, 180, 190, 0.8);
+}
+
+.dark .text-gray-400 {
+  color: rgba(200, 200, 210, 0.8);
+}
+
+/* Fix for month toggle button in dark mode */
+.dark .month-toggle-button.bg-blue-100 {
+  background-color: rgba(70, 70, 90, 0.8);
+}
+
+.dark .month-toggle-button.text-blue-600 {
+  color: rgb(200, 200, 255);
+}
+
+.dark .month-toggle-button.text-gray-400 {
+  color: rgba(180, 180, 190, 0.8);
+}
+
+/* Updated card styles with lighter borders and shadows for dark mode */
+.dark .card {
+  border-color: rgba(80, 80, 95, 0.5);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+}
