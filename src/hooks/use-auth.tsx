@@ -102,34 +102,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // -------------------------------------------
   useEffect(() => {
     if (!authChecked) return;
-    if (hasSetupListenerRef.current) return; // Évite la double subscription
-    hasSetupListenerRef.current = true;
-
+    // On retire la condition hasSetupListenerRef pour forcer l'installation de l'écouteur
     console.log("Setting up auth state change listener");
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+  
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log("Auth state change event:", event);
-
+  
       if (event === "SIGNED_IN" && newSession?.user) {
-        // Éviter le re-signed_in si c'est le même user
-        if (newSession.user.id === user?.id) {
-          console.log("Already signed in with the same user, ignoring...");
-          return;
-        }
-
         console.log("User signed in:", newSession.user.id);
         setSession(newSession);
         setUser(newSession.user);
-
-        // Check if user profile exists, create if not
+  
+        // Vérifier si le profil existe, sinon le créer
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", newSession.user.id)
           .maybeSingle();
-
+  
         if (!profile) {
           await supabase.from("profiles").insert({
             id: newSession.user.id,
@@ -137,38 +127,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             full_name: newSession.user.user_metadata.full_name || "",
           });
         }
-
+  
         toast({
           title: "Connecté",
           description: "Vous êtes maintenant connecté.",
         });
-
+  
+        // Redirection immédiate vers le dashboard
         navigate("/dashboard", { replace: true });
       } else if (event === "SIGNED_OUT") {
         console.log("User signed out");
         setUser(null);
         setSession(null);
-
+  
         toast({
           title: "Déconnecté",
           description: "Vous avez été déconnecté.",
         });
-
+  
         navigate("/auth", { replace: true });
       } else if (event === "TOKEN_REFRESHED" && newSession) {
         console.log("Token refreshed");
         setSession(newSession);
         setUser(newSession.user);
       }
-
+  
       setIsLoading(false);
     });
-
+  
     return () => {
       console.log("Cleaning up auth subscription");
       subscription.unsubscribe();
     };
-  }, [authChecked, user, navigate]);
+  }, [authChecked, navigate]);
+  
+  
 
   // -------------------------------------------
   // 5) Méthodes d'authentification

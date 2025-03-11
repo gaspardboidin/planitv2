@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { LockIcon, MailIcon, UserIcon, Eye, EyeOff } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
 const Auth = () => {
@@ -19,6 +20,7 @@ const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
   const { toast } = useToast();
   const { signIn, signUp, isLoading, resetPassword } = useAuth();
+  const navigate = useNavigate();
 
   // Show a simple loading indicator while checking auth status
   if (isLoading) {
@@ -51,7 +53,10 @@ const Auth = () => {
       
       if (!result.success) {
         console.log("Erreur de connexion:", result.error);
+      } else {
+        navigate("/dashboard");
       }
+
     } catch (error) {
       console.error("Erreur dans le composant Auth lors de la connexion:", error);
       toast({
