@@ -1,55 +1,50 @@
-
-import { useEffect, useRef } from 'react';
-import { FinanceState } from '@/types/finance';
-import { supabase } from '@/integrations/supabase/client';
-import { syncFinanceData } from '@/services/finance';
-import { toast } from '@/components/ui/use-toast';
+import { useEffect, useRef } from "react";
+import { FinanceState } from "@/types/finance";
+import { supabase } from "@/integrations/supabase/client";
+import { syncFinanceData } from "@/services/finance";
+import { toast } from "@/components/ui/use-toast";
 
 export const useLocalStoragePersistence = (state: FinanceState) => {
   const syncInProgressRef = useRef(false);
   const syncErrorCountRef = useRef(0);
-  const lastSyncAttemptRef = useRef(0);
-  const MIN_SYNC_INTERVAL = 5000; // Minimum 5 seconds between sync attempts
+  const lastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const MAX_SYNC_ERRORS = 3;
+  const INACTIVITY_DELAY = 2000; // 3 secondes
 
   useEffect(() => {
-    // Prevent infinite loops from sync errors
+    // Si trop d'erreurs, on n'essaie plus
     if (syncErrorCountRef.current >= MAX_SYNC_ERRORS) {
       console.warn("Trop d'erreurs de synchronisation, synchronisation désactivée temporairement");
       return;
     }
 
-    // Don't trigger multiple syncs at once
-    if (syncInProgressRef.current) {
-      return;
+    // Annule le précédent timer s'il existe
+    if (lastTimeoutRef.current) {
+      clearTimeout(lastTimeoutRef.current);
     }
 
-    // Rate limiting - don't sync too frequently
-    const now = Date.now();
-    if (now - lastSyncAttemptRef.current < MIN_SYNC_INTERVAL) {
-      return;
-    }
-    
-    lastSyncAttemptRef.current = now;
-
-    const saveState = async () => {
+    // Programme une synchro après 3 s d'inactivité
+    lastTimeoutRef.current = setTimeout(async () => {
       try {
+        // Empêche les sync multiples
+        if (syncInProgressRef.current) return;
         syncInProgressRef.current = true;
-        
-        // Ne pas sauvegarder l'état initial vide
+
+        // Vérifier si l'état est vide (ex : aucun budget)
         if (Object.keys(state.budgets).length === 0) {
           syncInProgressRef.current = false;
           return;
         }
-        
-        // Récupérer l'ID de l'utilisateur actuel
+
+        // Récupérer l'ID de l'utilisateur
         const { data } = await supabase.auth.getSession();
         const userId = data.session?.user?.id;
-        
+
         if (userId) {
-          // Sauvegarder avec une clé spécifique à l'utilisateur dans localStorage
+          // Sauvegarder dans localStorage
           localStorage.setItem(`financeState-${userId}`, JSON.stringify(state));
-          
+
           // Synchroniser avec Supabase
           const success = await syncFinanceData(state);
           if (success) {
@@ -59,32 +54,30 @@ export const useLocalStoragePersistence = (state: FinanceState) => {
             syncErrorCountRef.current++;
           }
         } else {
-          // Fallback au comportement précédent si pas d'utilisateur connecté
-          localStorage.setItem('financeState', JSON.stringify(state));
+          // Fallback si pas d'utilisateur
+          localStorage.setItem("financeState", JSON.stringify(state));
         }
-        
-        syncInProgressRef.current = false;
       } catch (error) {
-        syncInProgressRef.current = false;
         syncErrorCountRef.current++;
-        
-        // En cas d'erreur, utiliser le comportement par défaut
-        localStorage.setItem('financeState', JSON.stringify(state));
-        console.error('Erreur lors de la sauvegarde des données:', error);
-        
+        console.error("Erreur lors de la sauvegarde des données:", error);
+
         if (syncErrorCountRef.current <= MAX_SYNC_ERRORS) {
           toast({
             title: "Erreur de synchronisation",
             description: "Une erreur est survenue lors de la sauvegarde de vos données.",
-            variant: "destructive"
+            variant: "destructive",
           });
         }
+      } finally {
+        syncInProgressRef.current = false;
+      }
+    }, INACTIVITY_DELAY);
+
+    // Nettoyage du timer quand le composant se démonte ou si on repasse dans l'effet
+    return () => {
+      if (lastTimeoutRef.current) {
+        clearTimeout(lastTimeoutRef.current);
       }
     };
-    
-    // Ne pas déclencher de synchronisation si l'état est vide ou initial
-    if (Object.keys(state.budgets).length > 0) {
-      saveState();
-    }
   }, [state]);
 };

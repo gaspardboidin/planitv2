@@ -37,7 +37,7 @@ export const saveFixedIncomes = async (
   incomes: FixedIncome[]
 ): Promise<boolean> => {
   try {
-    // 1. Récupérer les revenus existants pour ce budget
+    // 1) Récupérer les revenus existants pour ce budget
     const { data: existingIncomes, error: fetchError } = await supabase
       .from("fixed_incomes")
       .select("id")
@@ -45,16 +45,16 @@ export const saveFixedIncomes = async (
 
     if (fetchError) throw fetchError;
 
-    // Construire un ensemble (Set) des IDs existants en base
+    // 2) Construire un ensemble des IDs existants en base
     const existingIds = new Set((existingIncomes || []).map((i) => i.id));
 
-    // Construire un ensemble des IDs présents localement
+    // 3) Construire un ensemble des IDs présents localement (en filtrant les valeurs falsy)
     const localIds = new Set(incomes.map((i) => i.id).filter(Boolean));
 
-    // 2. Déterminer quels IDs sont en base mais plus dans local => à supprimer
+    // 4) Déterminer quels IDs sont en base mais plus dans le state local => à supprimer
     const idsToDelete = [...existingIds].filter((id) => !localIds.has(id));
 
-    // 3. Supprimer les IDs manquants
+    // 5) Supprimer uniquement ces revenus
     if (idsToDelete.length > 0) {
       const { error: deleteError } = await supabase
         .from("fixed_incomes")
@@ -64,18 +64,17 @@ export const saveFixedIncomes = async (
       if (deleteError) throw deleteError;
     }
 
-    // 4. Upsert pour les revenus existants ou nouveaux
-    // Préparer le payload
-    const incomesToUpsert = incomes.map((income) => ({
-      id: income.id || uuid(),
-      budget_id: budgetId,
-      user_id: userId,
-      name: income.name,
-      amount: income.amount,
-      is_received: income.isReceived || false,
-    }));
+    // 6) Upsert pour les revenus existants ou nouveaux
+    if (incomes.length > 0) {
+      const incomesToUpsert = incomes.map((income) => ({
+        id: income.id || uuid(), // Générer un uuid() uniquement si l'ID n'existe pas déjà
+        budget_id: budgetId,
+        user_id: userId,
+        name: income.name,
+        amount: income.amount,
+        is_received: income.isReceived || false,
+      }));
 
-    if (incomesToUpsert.length > 0) {
       const { error: upsertError } = await supabase
         .from("fixed_incomes")
         .upsert(incomesToUpsert, { onConflict: "id" });
@@ -91,11 +90,10 @@ export const saveFixedIncomes = async (
 };
 
 /**
- * (Optionnel) Ajouter des revenus fixes par défaut lors de l'initialisation
+ * Ajouter des revenus fixes par défaut lors de l'initialisation (optionnel)
  */
 export async function addDefaultFixedIncome(budgetId: string, userId: string): Promise<void> {
   try {
-    // Par exemple, insérer un revenu "Salaire" par défaut
     const defaultIncome: FixedIncome = {
       id: uuid(),
       name: "Salaire",

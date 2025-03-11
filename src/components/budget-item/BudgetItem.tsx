@@ -1,4 +1,3 @@
-
 import { FixedIncome, FixedExpense } from "@/types/finance";
 import BudgetItemName from "./BudgetItemName";
 import BudgetItemAmount from "./BudgetItemAmount";

@@ -42,12 +42,13 @@ export const useBudgetItemUpdate = ({
   };
 
   const handleStatusChange = (checked: boolean | "indeterminate") => {
+    console.log("handleStatusChange, checked =", checked);
     if (type === "expense") {
       const updatedItem = { 
-        ...item as FixedExpense, 
+        ...(item as FixedExpense), 
         isPaid: checked === true 
       };
-      
+      console.log("Updated FixedExpense:", updatedItem);
       if (isCurrentMonth && onUpdateCurrentMonthOnly && updateCurrentMonthOnly) {
         onUpdateCurrentMonthOnly(updatedItem);
       } else {
@@ -55,19 +56,16 @@ export const useBudgetItemUpdate = ({
       }
     } else if (type === "income") {
       const updatedItem = { 
-        ...item as FixedIncome, 
+        ...(item as FixedIncome), 
         isReceived: checked === true 
       };
-      
+      console.log("Updated FixedIncome:", updatedItem);
       if (isCurrentMonth && onUpdateCurrentMonthOnly && updateCurrentMonthOnly) {
         onUpdateCurrentMonthOnly(updatedItem);
       } else {
         onUpdate(updatedItem);
       }
     }
-    
-    // No longer reset to default after saving
-    // This was the issue - it was always resetting to current month only
   };
 
   const toggleCurrentMonthOnly = (e: React.MouseEvent) => {

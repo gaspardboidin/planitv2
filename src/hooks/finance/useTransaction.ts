@@ -79,7 +79,7 @@ export const useTransaction = (setState: React.Dispatch<React.SetStateAction<any
         const originalYear = transactionDate.getFullYear();
         
         // Créer des transactions pour les 3 années suivantes
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= 10; i++) {
           const nextYear = originalYear + i;
           const nextYearBudgetKey = `${originalMonth}-${nextYear}`;
           

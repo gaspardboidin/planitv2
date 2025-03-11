@@ -4,7 +4,7 @@ import { getCurrentUserSession, loadUserAccounts, loadUserCategories, saveUserAc
 import { getAllBudgets, saveBudget, createInitialBudget } from "./budgets";
 // ↓↓↓ Vérifie que ces fonctions existent vraiment ↓↓↓
 // Si elles n'existent plus, supprime l'import
-import { getFixedIncomes, saveFixedIncomes, addDefaultFixedIncome } from "./fixedIncomes"; 
+import { getFixedIncomes, saveFixedIncomes, addDefaultFixedIncome } from "./fixedIncomes";
 import { getFixedExpenses, saveFixedExpenses, addDefaultFixedExpenses } from "./fixedExpenses";
 import { getTransactions, saveTransactions, getExistingTransactionIds } from "./transactions";
 
@@ -71,7 +71,7 @@ export const fetchFinanceData = async (): Promise<FinanceState | null> => {
           id: expense.id,
           name: expense.name,
           amount: expense.amount,
-          isPaid: expense.is_paid
+          isPaid: expense.isPaid
         }));
       }
       
@@ -94,8 +94,10 @@ export const fetchFinanceData = async (): Promise<FinanceState | null> => {
     const accounts = await loadUserAccounts(userId);
     const categories = await loadUserCategories(userId);
 
+
     // Créer l'objet FinanceState final
     const financeState: FinanceState = {
+      userId: userId,
       currentMonth: new Date().getMonth(),
       currentYear: new Date().getFullYear(),
       budgets: budgets,

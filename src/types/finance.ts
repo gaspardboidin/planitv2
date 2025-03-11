@@ -27,6 +27,7 @@ export interface MonthlyBudget {
 }
 
 export interface FinanceState {
+  userId: string;
   currentMonth: number;
   currentYear: number;
   budgets: Record<string, MonthlyBudget>;
