@@ -8,33 +8,32 @@ import { useFixedExpenseState } from "./state/useFixedExpenseState";
 import { useBudget } from "@/hooks/finance/useBudget";
 import { supabase } from "@/integrations/supabase/client";
 import { useFinanceTotals } from "@/hooks/finance/useFinanceTotals";
-// import { useAuth } from "@/hooks/use-auth"; // <-- si besoin pour userId
+import { useAuth } from "@/hooks/use-auth";
 
-/**
- * useFinanceState : Hook principal qui gère l'état global Finance.
- */
 export function useFinanceState() {
-  // 1) Récupérer le state initial (avec userId, etc.)
+  // 1) Initialiser le state de finance (incluant budgets, comptes, etc.)
   const [state, setState] = useInitializeState();
 
-  // 2) Ajouter l'état isLoading (true par défaut)
+  // 2) État de chargement global
   const [isLoading, setIsLoading] = useState(true);
 
-  // 3) Synchroniser le state vers localStorage (et Supabase) quand il change
+  // 3) Récupérer l'utilisateur connecté depuis useAuth
+  const { user } = useAuth();
+
+  // 4) Dès que l'utilisateur est disponible, mettre à jour state.userId
+  useEffect(() => {
+    if (user && user.id && user.id !== state.userId) {
+      setState(prev => ({
+        ...prev,
+        userId: user.id,
+      }));
+    }
+  }, [user, state.userId, setState]);
+
+  // 5) Synchroniser le state dans le localStorage (et Supabase) à chaque modification
   useLocalStoragePersistence(state);
 
-  // 4) (Optionnel) Mettre à jour le userId depuis un hook useAuth
-  // const { user } = useAuth();
-  // useEffect(() => {
-  //   if (user && user.id && user.id !== state.userId) {
-  //     setState((prev) => ({
-  //       ...prev,
-  //       userId: user.id,
-  //     }));
-  //   }
-  // }, [user, state.userId, setState]);
-
-  // 5) Récupérer les fonctions du hook useBudget
+  // 6) Récupérer les fonctions liées au budget
   const {
     setCurrentMonth,
     setCurrentYear,
@@ -46,72 +45,16 @@ export function useFinanceState() {
     resetAllData,
   } = useBudget(state, setState);
 
-  // 6) Création "à la demande" du budget du mois courant
-  useEffect(() => {
-    const budgetKey = `${state.currentMonth}-${state.currentYear}`;
-    if (!state.budgets[budgetKey]) {
-      const newBudget: MonthlyBudget = {
-        month: state.currentMonth,
-        year: state.currentYear,
-        initialBalance: 0,
-        remainingBalance: 0,
-        monthlySavings: 0,
-        isSavingsSetAside: false,
-        isSavingsTransferred: false,
-        fixedIncomes: [],
-        fixedExpenses: [],
-        transactions: [],
-      };
-
-      const previousKeys = Object.keys(state.budgets)
-        .map((key) => {
-          const [m, y] = key.split("-").map(Number);
-          return { key, date: new Date(y, m, 1) };
-        })
-        .filter((item) => {
-          const currentDate = new Date(state.currentYear, state.currentMonth, 1);
-          return item.date < currentDate;
-        })
-        .sort((a, b) => b.date.getTime() - a.date.getTime());
-
-      if (previousKeys.length > 0) {
-        const mostRecentKey = previousKeys[0].key;
-        const mostRecentBudget = state.budgets[mostRecentKey];
-        newBudget.monthlySavings = mostRecentBudget.monthlySavings;
-        newBudget.fixedIncomes = mostRecentBudget.fixedIncomes.map((inc) => ({
-          ...inc,
-          isReceived: false,
-        }));
-        newBudget.fixedExpenses = mostRecentBudget.fixedExpenses.map((exp) => ({
-          ...exp,
-          isPaid: false,
-        }));
-      }
-
-      setState((prev) => ({
-        ...prev,
-        budgets: {
-          ...prev.budgets,
-          [budgetKey]: newBudget,
-        },
-      }));
-    }
-  }, [state.currentMonth, state.currentYear, state.budgets, setState]);
-
-  // 7) useEffect pour charger les données initiales depuis Supabase
+  // 7) Charger les budgets depuis Supabase dès que userId est défini
   useEffect(() => {
     async function loadInitialData() {
+      if (!state.userId) {
+        // Si l'userId n'est pas défini, on ne charge rien et on arrête le chargement
+        setIsLoading(false);
+        return;
+      }
       try {
-        console.log("Début du chargement initial des données...");
-
-        // Vérifier que le userId est non vide
-        if (!state.userId || state.userId.length === 0) {
-          console.log("Aucun userId => on ne fait pas la requête Supabase");
-          setIsLoading(false);
-          return;
-        }
-
-        // Requête Supabase
+        console.log("Début du chargement initial des budgets pour l'utilisateur:", state.userId);
         const { data: budgetsData, error: budgetsError } = await supabase
           .from("monthly_budgets")
           .select("*")
@@ -120,6 +63,7 @@ export function useFinanceState() {
         if (budgetsError) {
           console.error("Erreur lors du chargement des budgets:", budgetsError);
         } else if (budgetsData) {
+          // Transformer les données récupérées en un objet de type Record<string, MonthlyBudget>
           const budgetsRecord: Record<string, MonthlyBudget> = {};
           budgetsData.forEach((budget: any) => {
             const key = `${budget.month}-${budget.year}`;
@@ -131,12 +75,13 @@ export function useFinanceState() {
               monthlySavings: budget.monthly_savings,
               isSavingsSetAside: budget.is_savings_set_aside,
               isSavingsTransferred: budget.is_savings_transferred || false,
-              fixedIncomes: [],
-              fixedExpenses: [],
-              transactions: [],
+              fixedIncomes: [],   // Vous pouvez charger ces données si nécessaire
+              fixedExpenses: [],  // Vous pouvez charger ces données si nécessaire
+              transactions: [],   // Vous pouvez charger ces données si nécessaire
             };
           });
-          setState((prev) => ({
+          // Fusionner avec les budgets déjà présents dans le state
+          setState(prev => ({
             ...prev,
             budgets: {
               ...prev.budgets,
@@ -148,34 +93,45 @@ export function useFinanceState() {
         console.error("Erreur inattendue lors du chargement initial:", error);
       } finally {
         setIsLoading(false);
-        console.log("Chargement initial terminé, isLoading = false");
+        console.log("Chargement initial terminé, isLoading =", false);
       }
     }
     loadInitialData();
   }, [state.userId, setState]);
 
-  // 8) getMonthlyBudgets
-  function getMonthlyBudgets(): MonthlyBudget[] {
-    return Object.values(state.budgets);
-  }
+  // 8) Fonction pour obtenir tous les budgets mensuels sous forme de tableau
+  const getMonthlyBudgets = (): MonthlyBudget[] => Object.values(state.budgets);
 
-  // 9) Totaux (incomes, expenses, transactions)
+  // 9) Calcul des totaux via useFinanceTotals (les fonctions de totaux se basent sur getCurrentBudget)
   const {
     getTotalFixedIncomes,
     getTotalFixedExpenses,
     getTotalTransactions,
   } = useFinanceTotals(getCurrentBudget);
 
-  // 10) Fonctions de gestion de transactions
-  const { addTransaction, updateTransaction, deleteTransaction } = useTransactionState(state, setState);
+  // 10) Fonctions de gestion des transactions
+  const {
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+  } = useTransactionState(state, setState);
 
-  // 11) Fonctions de gestion de revenus fixes
-  const { updateFixedIncome, addFixedIncome, removeFixedIncome, updateCurrentMonthIncome } = useFixedIncomeState(state, setState);
+  // 11) Fonctions de gestion des revenus fixes
+  const {
+    updateFixedIncome,
+    addFixedIncome,
+    removeFixedIncome,
+    updateCurrentMonthIncome,
+  } = useFixedIncomeState(state, setState);
 
-  // 12) Fonctions de gestion de dépenses fixes
-  const { updateFixedExpense, addFixedExpense, removeFixedExpense, updateCurrentMonthExpense } = useFixedExpenseState(state, setState);
+  // 12) Fonctions de gestion des dépenses fixes
+  const {
+    updateFixedExpense,
+    addFixedExpense,
+    removeFixedExpense,
+    updateCurrentMonthExpense,
+  } = useFixedExpenseState(state, setState);
 
-  // 13) Retourner tout, y compris isLoading
   return {
     state,
     isLoading,

@@ -5,62 +5,61 @@ import { syncFinanceData } from "@/services/finance";
 import { toast } from "@/components/ui/use-toast";
 
 export const useLocalStoragePersistence = (state: FinanceState) => {
-  const syncInProgressRef = useRef(false);
-  const syncErrorCountRef = useRef(0);
+  const syncInProgressRef = useRef<boolean>(false);
+  const syncErrorCountRef = useRef<number>(0);
   const lastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const MAX_SYNC_ERRORS = 3;
-  const INACTIVITY_DELAY = 2000; // 3 secondes
+  const INACTIVITY_DELAY = 3000; // 3 secondes
 
   useEffect(() => {
-    // Si trop d'erreurs, on n'essaie plus
-    if (syncErrorCountRef.current >= MAX_SYNC_ERRORS) {
-      console.warn("Trop d'erreurs de synchronisation, synchronisation désactivée temporairement");
+    // Vérifier que les informations essentielles sont définies
+    if (state.currentMonth === undefined || state.currentYear === undefined) {
+      console.log("useLocalStoragePersistence: currentMonth ou currentYear non définis, synchronisation ignorée.");
       return;
     }
 
-    // Annule le précédent timer s'il existe
+    // Log de l'état actuel pour le débogage
+    console.log("useLocalStoragePersistence: state mis à jour :", state);
+
+    // Annuler le timer précédent s'il existe
     if (lastTimeoutRef.current) {
       clearTimeout(lastTimeoutRef.current);
     }
 
-    // Programme une synchro après 3 s d'inactivité
+    // Planifier une synchronisation après INACTIVITY_DELAY millisecondes d'inactivité
     lastTimeoutRef.current = setTimeout(async () => {
       try {
-        // Empêche les sync multiples
-        if (syncInProgressRef.current) return;
-        syncInProgressRef.current = true;
-
-        // Vérifier si l'état est vide (ex : aucun budget)
-        if (Object.keys(state.budgets).length === 0) {
-          syncInProgressRef.current = false;
+        if (syncInProgressRef.current) {
+          console.log("useLocalStoragePersistence: synchronisation déjà en cours, annulation de ce cycle.");
           return;
         }
+        syncInProgressRef.current = true;
+        console.log("useLocalStoragePersistence: démarrage de la synchronisation...");
 
-        // Récupérer l'ID de l'utilisateur
+        // Sauvegarder dans localStorage
         const { data } = await supabase.auth.getSession();
         const userId = data.session?.user?.id;
-
         if (userId) {
-          // Sauvegarder dans localStorage
           localStorage.setItem(`financeState-${userId}`, JSON.stringify(state));
-
-          // Synchroniser avec Supabase
-          const success = await syncFinanceData(state);
-          if (success) {
-            syncErrorCountRef.current = 0;
-            console.log("Données synchronisées avec Supabase pour l'utilisateur:", userId);
-          } else {
-            syncErrorCountRef.current++;
-          }
+          console.log(`useLocalStoragePersistence: État sauvegardé dans localStorage sous la clé financeState-${userId}`);
         } else {
-          // Fallback si pas d'utilisateur
           localStorage.setItem("financeState", JSON.stringify(state));
+          console.log("useLocalStoragePersistence: État sauvegardé dans localStorage sous la clé financeState");
+        }
+
+        // Synchroniser avec Supabase
+        const success = await syncFinanceData(state);
+        if (success) {
+          console.log("useLocalStoragePersistence: Synchronisation réussie avec Supabase.");
+          syncErrorCountRef.current = 0;
+        } else {
+          syncErrorCountRef.current++;
+          console.error("useLocalStoragePersistence: Échec de la synchronisation avec Supabase.");
         }
       } catch (error) {
         syncErrorCountRef.current++;
-        console.error("Erreur lors de la sauvegarde des données:", error);
-
+        console.error("useLocalStoragePersistence: Erreur lors de la synchronisation :", error);
         if (syncErrorCountRef.current <= MAX_SYNC_ERRORS) {
           toast({
             title: "Erreur de synchronisation",
@@ -70,10 +69,10 @@ export const useLocalStoragePersistence = (state: FinanceState) => {
         }
       } finally {
         syncInProgressRef.current = false;
+        console.log("useLocalStoragePersistence: Synchronisation terminée.");
       }
     }, INACTIVITY_DELAY);
 
-    // Nettoyage du timer quand le composant se démonte ou si on repasse dans l'effet
     return () => {
       if (lastTimeoutRef.current) {
         clearTimeout(lastTimeoutRef.current);

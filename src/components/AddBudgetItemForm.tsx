@@ -29,6 +29,7 @@ const AddBudgetItemForm = ({ onAdd, type }: AddBudgetItemFormProps) => {
         title: "Nom requis",
         description: "Veuillez saisir un nom pour cet élément.",
         variant: "destructive",
+        duration: 2000,
       });
       return;
     }
@@ -44,6 +45,7 @@ const AddBudgetItemForm = ({ onAdd, type }: AddBudgetItemFormProps) => {
     toast({
       title: type === "income" ? "Revenu ajouté" : "Dépense ajoutée",
       description: `${name} a été ajouté avec succès.`,
+      duration: 2000,
     });
   };
 

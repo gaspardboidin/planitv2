@@ -19,19 +19,14 @@ export const useBudget = (
   };
 
   /**
-   * getCurrentBudget : Renvoie simplement le budget du mois courant **sans** setState.
-   * - Si le budget existe, on le retourne.
-   * - Sinon, on retourne un budget “virtuel” par défaut (mais on ne l'ajoute pas dans le state).
-   *   => La création “à la demande” se fera dans un useEffect dans useFinanceState.ts (par ex.)
+   * getCurrentBudget : Renvoie simplement le budget du mois courant **sans** modifier le state.
+   * Si le budget existe, il est renvoyé ; sinon, un objet par défaut est retourné.
    */
   const getCurrentBudget = (): MonthlyBudget => {
     const budgetKey = `${state.currentMonth}-${state.currentYear}`;
     if (state.budgets[budgetKey]) {
-      // Le budget existe déjà, on le renvoie
       return state.budgets[budgetKey];
     }
-
-    // Sinon, on retourne juste un objet “par défaut” **sans** faire de setState
     return {
       month: state.currentMonth,
       year: state.currentYear,
@@ -48,9 +43,8 @@ export const useBudget = (
 
   const updateInitialBalance = (amount: number) => {
     const budgetKey = `${state.currentMonth}-${state.currentYear}`;
-
     setState((prev) => {
-      const currentBudget = prev.budgets[budgetKey];
+      const currentBudget = prev.budgets[budgetKey] || getCurrentBudget();
       return {
         ...prev,
         budgets: {
@@ -69,8 +63,9 @@ export const useBudget = (
   /**
    * updateMonthlySavings :
    * - Met à jour localement la valeur monthlySavings du mois courant.
-   * - Si tu veux propager aux mois futurs déjà créés, tu peux ajouter la boucle.
-   * - Met aussi à jour Supabase pour le mois courant.
+   * - Met à jour Supabase pour le mois courant.
+   * - Si currentMonthOnly est false, propage cette valeur aux mois futurs.
+   *   Si aucun budget futur n'existe, il crée d'abord les budgets pour les 3 mois suivants.
    */
   const updateMonthlySavings = async (amount: number, currentMonthOnly = false) => {
     const budgetKey = `${state.currentMonth}-${state.currentYear}`;
@@ -101,45 +96,87 @@ export const useBudget = (
       console.log("Épargne mise à jour dans Supabase pour le mois courant :", data);
     }
 
-    // 3) Si l'utilisateur veut appliquer à tous les mois futurs déjà créés
+    // 3) Propagation aux mois futurs si demandé
     if (!currentMonthOnly) {
       const currentDate = new Date(state.currentYear, state.currentMonth, 1);
-
-      // Trouver tous les budgets futurs
-      const futureKeys = Object.keys(state.budgets).filter((key) => {
+      let futureKeys = Object.keys(state.budgets).filter((key) => {
         const [m, y] = key.split("-").map(Number);
         const date = new Date(y, m, 1);
         return date > currentDate;
       });
 
-      if (futureKeys.length > 0) {
-        // 3.1 Mettre à jour localement
-        setState((prev) => {
-          const newBudgets = { ...prev.budgets };
-          futureKeys.forEach((fk) => {
-            newBudgets[fk] = {
-              ...newBudgets[fk],
+      // Si aucun budget futur n'existe, créer les budgets pour les 3 prochains mois
+      if (futureKeys.length === 0) {
+        const newBudgets: Record<string, MonthlyBudget> = {};
+        for (let i = 1; i <= 3; i++) {
+          const nextDate = new Date(state.currentYear, state.currentMonth + i, 1);
+          const nextMonth = nextDate.getMonth();
+          const nextYear = nextDate.getFullYear();
+          const nextBudgetKey = `${nextMonth}-${nextYear}`;
+          if (!state.budgets[nextBudgetKey]) {
+            newBudgets[nextBudgetKey] = {
+              month: nextMonth,
+              year: nextYear,
+              initialBalance: 0,
+              remainingBalance: 0,
               monthlySavings: amount,
+              isSavingsSetAside: false,
+              isSavingsTransferred: false,
+              fixedIncomes: [],
+              fixedExpenses: [],
+              transactions: [],
             };
-          });
-          return { ...prev, budgets: newBudgets };
-        });
-
-        // 3.2 Mettre à jour Supabase pour chaque budget futur
-        for (const fk of futureKeys) {
-          const [m, y] = fk.split("-").map(Number);
-          const { data: updData, error: updError } = await supabase
-            .from("monthly_budgets")
-            .update({ monthly_savings: amount })
-            .eq("user_id", state.userId)
-            .eq("month", m)
-            .eq("year", y);
-
-          if (updError) {
-            console.error(`Erreur mise à jour épargne pour ${fk} :`, updError);
-          } else {
-            console.log(`Épargne mise à jour dans Supabase pour ${fk} :`, updData);
+            // Optionnel : insérer le nouveau budget dans Supabase
+            await supabase.from("monthly_budgets").insert({
+              user_id: state.userId,
+              month: nextMonth,
+              year: nextYear,
+              monthly_savings: amount,
+              initial_balance: 0,
+              remaining_balance: 0,
+              is_savings_set_aside: false,
+              is_savings_transferred: false,
+            });
           }
+        }
+        // Mettre à jour le state avec les nouveaux budgets
+        setState((prev) => ({
+          ...prev,
+          budgets: { ...prev.budgets, ...newBudgets },
+        }));
+        // Recalculez futureKeys après création
+        futureKeys = Object.keys(state.budgets).filter((key) => {
+          const [m, y] = key.split("-").map(Number);
+          const date = new Date(y, m, 1);
+          return date > currentDate;
+        });
+      }
+
+      // 3.1 Mise à jour locale des budgets futurs
+      setState((prev) => {
+        const newBudgets = { ...prev.budgets };
+        futureKeys.forEach((fk) => {
+          newBudgets[fk] = {
+            ...newBudgets[fk],
+            monthlySavings: amount,
+          };
+        });
+        return { ...prev, budgets: newBudgets };
+      });
+
+      // 3.2 Mise à jour Supabase pour chaque budget futur
+      for (const fk of futureKeys) {
+        const [m, y] = fk.split("-").map(Number);
+        const { data: updData, error: updError } = await supabase
+          .from("monthly_budgets")
+          .update({ monthly_savings: amount })
+          .eq("user_id", state.userId)
+          .eq("month", m)
+          .eq("year", y);
+        if (updError) {
+          console.error(`Erreur mise à jour épargne pour ${fk} :`, updError);
+        } else {
+          console.log(`Épargne mise à jour dans Supabase pour ${fk} :`, updData);
         }
       }
     }
@@ -148,7 +185,7 @@ export const useBudget = (
   const toggleSavingsSetAside = () => {
     const budgetKey = `${state.currentMonth}-${state.currentYear}`;
     setState((prev) => {
-      const currentBudget = prev.budgets[budgetKey];
+      const currentBudget = prev.budgets[budgetKey] || getCurrentBudget();
       return {
         ...prev,
         budgets: {
@@ -165,7 +202,7 @@ export const useBudget = (
   const markSavingsAsTransferred = () => {
     const budgetKey = `${state.currentMonth}-${state.currentYear}`;
     setState((prev) => {
-      const currentBudget = prev.budgets[budgetKey];
+      const currentBudget = prev.budgets[budgetKey] || getCurrentBudget();
       return {
         ...prev,
         budgets: {

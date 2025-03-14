@@ -33,6 +33,7 @@ export const AuthForm = () => {
         toast({
           title: "Connexion réussie",
           description: "Vous êtes maintenant connecté",
+          duration: 2000,
         });
         
         // Rediriger vers le dashboard après connexion réussie
@@ -52,6 +53,7 @@ export const AuthForm = () => {
         toast({
           title: "Inscription réussie",
           description: "Vérifiez votre email pour confirmer votre compte",
+          duration: 2000,
         });
       }
     } catch (error: any) {
@@ -59,6 +61,7 @@ export const AuthForm = () => {
         title: "Erreur",
         description: error.message,
         variant: "destructive",
+        duration: 2000,
       });
     } finally {
       setLoading(false);

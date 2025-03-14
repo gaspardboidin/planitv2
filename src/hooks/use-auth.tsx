@@ -356,15 +356,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error("Sign out error:", error);
-
-        if (
-          error.message?.includes("Auth session missing") ||
-          error.name === "AuthSessionMissingError"
-        ) {
-          console.log("Session already expired, treating as success");
-        } else {
-          throw error;
-        }
+        // On force la déconnexion localement + navigation
+        setUser(null);
+        setSession(null);
+        navigate("/auth", { replace: true });
+        toast({
+          title: "Déconnecté",
+          description: "Session expirée ou déjà fermée.",
+        });
+      } else {
+        console.log("Sign out successful");
+        // On laisse l'écouteur onAuthStateChange gérer la navigation
+        // MAIS on ajoute un fallback
+        setTimeout(() => {
+          navigate("/auth", { replace: true });
+        }, 1000);
       }
 
       console.log("Sign out successful");

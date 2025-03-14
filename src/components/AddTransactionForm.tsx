@@ -164,6 +164,7 @@ const AddTransactionForm = () => {
           toast({
             title: "Compte d'épargne débité",
             description: `${formData.amount}€ ont été débités de ${selectedAccount.name}`,
+            duration: 2000,
           });
         }
       } catch (error) {

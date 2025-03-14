@@ -156,6 +156,7 @@ export function AccountList({
               <div className="text-center py-8 text-gray-500 flex flex-col items-center">
                 <LoadingSpinner size="lg" className="mb-2" />
                 <p>Chargement des comptes...</p>
+                <p>Actualiser la page si c'est trop long... nous travaillons sur le probleme</p>
               </div>
             )}
             

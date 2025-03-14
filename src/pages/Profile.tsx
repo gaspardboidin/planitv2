@@ -28,8 +28,10 @@ const Profile = () => {
 
   if (loadingProfile) {
     return (
-      <div className="container mx-auto max-w-3xl py-6 flex justify-center items-center min-h-[50vh]">
-        <LoadingSpinner size="lg" />
+      <div className="text-center py-8 text-gray-500 flex flex-col justify-center items-center">
+        <LoadingSpinner size="lg" className="mb-2" />
+        <p>Chargement de la page...</p>
+        <p>Actualiser la page si c'est trop long... nous travaillons sur le probleme</p>
       </div>
     );
   }
